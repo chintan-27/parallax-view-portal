@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ThreeCanvas } from '@/Scene';
-import { WebcamPrompt, TrackingStatus, DebugOverlay } from '@/UI';
+import {
+  WebcamPrompt,
+  TrackingStatus,
+  DebugOverlay,
+  SettingsPanel,
+  SettingsButton,
+  DesktopOnly,
+} from '@/UI';
 import { useWebcam } from '@/hooks/useWebcam';
 import { useFaceTracking } from '@/FaceTracking';
 import { useAppStore } from '@/store';
@@ -9,6 +16,7 @@ function App() {
   const webcamPermission = useAppStore((state) => state.webcamPermission);
   const setWebcamPermission = useAppStore((state) => state.setWebcamPermission);
   const showDebug = useAppStore((state) => state.ui.showDebug);
+  const showSettings = useAppStore((state) => state.ui.showSettings);
   const setUI = useAppStore((state) => state.setUI);
 
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
@@ -62,19 +70,29 @@ function App() {
     setWebcamPermission('granted');
   }, [setWebcamPermission]);
 
-  // Toggle debug overlay with 'D' key
+  const toggleSettings = useCallback(() => {
+    setUI({ showSettings: !showSettings });
+  }, [showSettings, setUI]);
+
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'd' || e.key === 'D') {
         setUI({ showDebug: !showDebug });
       }
+      if (e.key === 's' || e.key === 'S') {
+        setUI({ showSettings: !showSettings });
+      }
+      if (e.key === 'Escape' && showSettings) {
+        setUI({ showSettings: false });
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showDebug, setUI]);
+  }, [showDebug, showSettings, setUI]);
 
   return (
-    <>
+    <DesktopOnly>
       <ThreeCanvas faceData={faceData} />
 
       {/* Hidden video element for face tracking */}
@@ -100,7 +118,11 @@ function App() {
       />
 
       {webcamPermission === 'granted' && (
-        <TrackingStatus isTracking={faceData !== null} isLoading={isModelLoading} />
+        <>
+          <TrackingStatus isTracking={faceData !== null} isLoading={isModelLoading} />
+          <SettingsButton onClick={toggleSettings} isOpen={showSettings} />
+          {showSettings && <SettingsPanel onClose={() => setUI({ showSettings: false })} />}
+        </>
       )}
 
       <DebugOverlay faceData={faceData} show={showDebug && webcamPermission === 'granted'} />
@@ -111,25 +133,32 @@ function App() {
         isLoading={isLoading}
       />
 
-      {/* Keyboard hint */}
-      {webcamPermission === 'granted' && (
+      {/* Keyboard hints */}
+      {webcamPermission === 'granted' && !showSettings && (
         <div
           style={{
             position: 'fixed',
             bottom: '16px',
             right: '16px',
-            padding: '4px 8px',
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-            borderRadius: '4px',
+            padding: '6px 10px',
+            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+            borderRadius: '6px',
             fontSize: '11px',
-            color: '#888',
+            color: '#666',
             zIndex: 50,
+            display: 'flex',
+            gap: '12px',
           }}
         >
-          Press D to toggle debug
+          <span>
+            <kbd style={{ color: '#888' }}>D</kbd> Debug
+          </span>
+          <span>
+            <kbd style={{ color: '#888' }}>S</kbd> Settings
+          </span>
         </div>
       )}
-    </>
+    </DesktopOnly>
   );
 }
 

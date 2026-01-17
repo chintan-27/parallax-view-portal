@@ -46,7 +46,7 @@ export const useAppStore = create<AppState>()(
       },
       ui: {
         showSettings: false,
-        showDebug: true, // Enable by default for development
+        showDebug: false,
       },
       webcamPermission: 'pending',
       setCalibration: (calibration) =>
