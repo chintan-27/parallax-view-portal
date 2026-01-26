@@ -7,6 +7,8 @@ import {
   SettingsPanel,
   SettingsButton,
   DesktopOnly,
+  AssetPanel,
+  AssetButton,
 } from '@/UI';
 import { useWebcam } from '@/hooks/useWebcam';
 import { useFaceTracking } from '@/FaceTracking';
@@ -17,6 +19,7 @@ function App() {
   const setWebcamPermission = useAppStore((state) => state.setWebcamPermission);
   const showDebug = useAppStore((state) => state.ui.showDebug);
   const showSettings = useAppStore((state) => state.ui.showSettings);
+  const showAssetPanel = useAppStore((state) => state.ui.showAssetPanel);
   const setUI = useAppStore((state) => state.setUI);
 
   const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
@@ -74,6 +77,10 @@ function App() {
     setUI({ showSettings: !showSettings });
   }, [showSettings, setUI]);
 
+  const toggleAssetPanel = useCallback(() => {
+    setUI({ showAssetPanel: !showAssetPanel });
+  }, [showAssetPanel, setUI]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -83,13 +90,17 @@ function App() {
       if (e.key === 's' || e.key === 'S') {
         setUI({ showSettings: !showSettings });
       }
-      if (e.key === 'Escape' && showSettings) {
-        setUI({ showSettings: false });
+      if (e.key === 'a' || e.key === 'A') {
+        setUI({ showAssetPanel: !showAssetPanel });
+      }
+      if (e.key === 'Escape') {
+        if (showAssetPanel) setUI({ showAssetPanel: false });
+        else if (showSettings) setUI({ showSettings: false });
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showDebug, showSettings, setUI]);
+  }, [showDebug, showSettings, showAssetPanel, setUI]);
 
   return (
     <DesktopOnly>
@@ -121,7 +132,9 @@ function App() {
         <>
           <TrackingStatus isTracking={faceData !== null} isLoading={isModelLoading} />
           <SettingsButton onClick={toggleSettings} isOpen={showSettings} />
+          <AssetButton onClick={toggleAssetPanel} isOpen={showAssetPanel} />
           {showSettings && <SettingsPanel onClose={() => setUI({ showSettings: false })} />}
+          {showAssetPanel && <AssetPanel onClose={() => setUI({ showAssetPanel: false })} />}
         </>
       )}
 
@@ -134,7 +147,7 @@ function App() {
       />
 
       {/* Keyboard hints */}
-      {webcamPermission === 'granted' && !showSettings && (
+      {webcamPermission === 'granted' && !showSettings && !showAssetPanel && (
         <div
           style={{
             position: 'fixed',
@@ -155,6 +168,9 @@ function App() {
           </span>
           <span>
             <kbd style={{ color: '#888' }}>S</kbd> Settings
+          </span>
+          <span>
+            <kbd style={{ color: '#888' }}>A</kbd> Assets
           </span>
         </div>
       )}

@@ -8,6 +8,8 @@ import {
   type ViewerPosition,
 } from '@/OffAxisCamera';
 import { useAppStore } from '@/store';
+import { ParallaxPlane } from './ParallaxPlane';
+import { LayeredDepthPlane } from './LayeredDepthPlane';
 
 interface ThreeCanvasProps {
   faceData: FaceTrackingResult | null;
@@ -20,8 +22,17 @@ export function ThreeCanvas({ faceData }: ThreeCanvasProps) {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const smootherRef = useRef<PositionSmoother | null>(null);
   const faceDataRef = useRef<FaceTrackingResult | null>(null);
+  const loadedModelsRef = useRef<Map<string, THREE.Group>>(new Map());
+  const backgroundMeshRef = useRef<THREE.Mesh | null>(null);
+  const parallaxPlaneRef = useRef<ParallaxPlane | null>(null);
+  const layeredPlaneRef = useRef<LayeredDepthPlane | null>(null);
+  const viewerPositionRef = useRef<ViewerPosition>({ x: 0, y: 0, z: 60 });
 
   const calibration = useAppStore((state) => state.calibration);
+  const parallaxSettings = useAppStore((state) => state.parallaxSettings);
+  const models = useAppStore((state) => state.assets.models);
+  const backgroundImage = useAppStore((state) => state.assets.backgroundImage);
+  const processedImage = useAppStore((state) => state.assets.processedImage);
 
   // Update face data ref when it changes
   useEffect(() => {
@@ -34,6 +45,202 @@ export function ThreeCanvas({ faceData }: ThreeCanvasProps) {
       smootherRef.current.setAlpha(calibration.smoothingFactor);
     }
   }, [calibration.smoothingFactor]);
+
+  // Apply parallax settings to the active renderer when they change
+  useEffect(() => {
+    if (parallaxPlaneRef.current) {
+      parallaxPlaneRef.current.applySettings({
+        parallaxStrength: parallaxSettings.parallaxStrength,
+        depthScale: parallaxSettings.depthScale,
+        focusDistance: parallaxSettings.focusDistance,
+        edgeFade: parallaxSettings.edgeFade,
+        depthSmoothing: parallaxSettings.depthSmoothing,
+      });
+    }
+    if (layeredPlaneRef.current) {
+      layeredPlaneRef.current.applySettings({
+        parallaxStrength: parallaxSettings.parallaxStrength,
+        depthScale: parallaxSettings.depthScale,
+        edgeFade: parallaxSettings.edgeFade,
+        featherWidth: parallaxSettings.featherWidth,
+        layerSpacing: parallaxSettings.layerSpacing,
+      });
+    }
+  }, [parallaxSettings]);
+
+  // Manage loaded models in the scene
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+
+    const currentModelIds = new Set(models.map((m) => m.id));
+    const loadedModelIds = new Set(loadedModelsRef.current.keys());
+
+    // Remove models that are no longer in the store
+    for (const id of loadedModelIds) {
+      if (!currentModelIds.has(id)) {
+        const model = loadedModelsRef.current.get(id);
+        if (model) {
+          scene.remove(model);
+          // Dispose of geometries and materials
+          model.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+              child.geometry.dispose();
+              if (Array.isArray(child.material)) {
+                child.material.forEach((m) => m.dispose());
+              } else {
+                child.material.dispose();
+              }
+            }
+          });
+          loadedModelsRef.current.delete(id);
+        }
+      }
+    }
+
+    // Add new models
+    for (const modelData of models) {
+      if (!loadedModelsRef.current.has(modelData.id)) {
+        scene.add(modelData.object);
+        loadedModelsRef.current.set(modelData.id, modelData.object);
+      }
+    }
+  }, [models]);
+
+  // Manage background image
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+
+    // Remove existing background mesh
+    if (backgroundMeshRef.current) {
+      scene.remove(backgroundMeshRef.current);
+      backgroundMeshRef.current.geometry.dispose();
+      if (backgroundMeshRef.current.material instanceof THREE.Material) {
+        backgroundMeshRef.current.material.dispose();
+      }
+      backgroundMeshRef.current = null;
+    }
+
+    // Add new background if present
+    if (backgroundImage?.texture) {
+      const roomDepth = 50;
+      const roomWidth = 40;
+      const roomHeight = 30;
+
+      // Calculate aspect ratio to maintain image proportions
+      const image = backgroundImage.texture.image as HTMLImageElement;
+      const imageAspect = image.width / image.height;
+      const planeAspect = roomWidth / roomHeight;
+
+      let planeWidth = roomWidth;
+      let planeHeight = roomHeight;
+
+      if (imageAspect > planeAspect) {
+        planeHeight = roomWidth / imageAspect;
+      } else {
+        planeWidth = roomHeight * imageAspect;
+      }
+
+      const geometry = new THREE.PlaneGeometry(planeWidth, planeHeight);
+      const material = new THREE.MeshBasicMaterial({
+        map: backgroundImage.texture,
+        side: THREE.FrontSide,
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(0, 0, -roomDepth + 0.1); // Slightly in front of back wall
+      scene.add(mesh);
+      backgroundMeshRef.current = mesh;
+    }
+  }, [backgroundImage]);
+
+  // Manage processed image with parallax effect
+  // Note: parallaxSettings changes are handled by a separate effect (applySettings)
+  // We recreate the renderer when the image or render mode changes
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+
+    // Capture current settings for plane creation
+    const currentSettings = parallaxSettings;
+
+    // Remove existing parallax planes
+    if (parallaxPlaneRef.current) {
+      scene.remove(parallaxPlaneRef.current);
+      parallaxPlaneRef.current.dispose();
+      parallaxPlaneRef.current = null;
+    }
+    if (layeredPlaneRef.current) {
+      scene.remove(layeredPlaneRef.current);
+      layeredPlaneRef.current.dispose();
+      layeredPlaneRef.current = null;
+    }
+
+    // Add new parallax renderer if processed image exists
+    if (processedImage) {
+      const roomDepth = 50;
+      const roomWidth = 40;
+      const roomHeight = 30;
+
+      // Calculate aspect ratio to maintain image proportions
+      const imageAspect = processedImage.width / processedImage.height;
+      const planeAspect = roomWidth / roomHeight;
+
+      let planeWidth = roomWidth;
+      let planeHeight = roomHeight;
+
+      if (imageAspect > planeAspect) {
+        planeHeight = roomWidth / imageAspect;
+      } else {
+        planeWidth = roomHeight * imageAspect;
+      }
+
+      // Determine position based on input type
+      const isObject = processedImage.inputType === 'object';
+      const zPosition = isObject ? -25 : -roomDepth + 0.2;
+
+      if (currentSettings.renderMode === 'layered') {
+        // Create layered depth renderer
+        const layeredPlane = new LayeredDepthPlane({
+          colorTexture: processedImage.colorTexture,
+          depthTexture: processedImage.depthTexture,
+          maskTexture: processedImage.maskTexture,
+          width: planeWidth,
+          height: planeHeight,
+          numLayers: currentSettings.numLayers,
+          parallaxStrength: currentSettings.parallaxStrength,
+          depthScale: currentSettings.depthScale,
+          edgeFade: currentSettings.edgeFade,
+          featherWidth: currentSettings.featherWidth,
+          layerSpacing: currentSettings.layerSpacing,
+        });
+
+        layeredPlane.position.set(0, 0, zPosition);
+        scene.add(layeredPlane);
+        layeredPlaneRef.current = layeredPlane;
+      } else {
+        // Create single-plane parallax renderer
+        const plane = new ParallaxPlane({
+          colorTexture: processedImage.colorTexture,
+          depthTexture: processedImage.depthTexture,
+          maskTexture: processedImage.maskTexture,
+          width: planeWidth,
+          height: planeHeight,
+          parallaxStrength: currentSettings.parallaxStrength,
+          depthScale: currentSettings.depthScale,
+          focusDistance: currentSettings.focusDistance,
+          edgeFade: currentSettings.edgeFade,
+          depthSmoothing: currentSettings.depthSmoothing,
+        });
+
+        plane.position.set(0, 0, zPosition);
+        scene.add(plane);
+        parallaxPlaneRef.current = plane;
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [processedImage, parallaxSettings.renderMode, parallaxSettings.numLayers]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -86,6 +293,8 @@ export function ThreeCanvas({ faceData }: ThreeCanvasProps) {
       const aspectRatio = window.innerWidth / window.innerHeight;
       const screenHeightCm = screenWidthCm / aspectRatio;
 
+      let viewerPosition: ViewerPosition;
+
       if (currentFaceData && smootherRef.current) {
         // Convert face tracking to viewer position
         const rawPosition = faceTrackingToViewerPosition(
@@ -98,20 +307,35 @@ export function ThreeCanvas({ faceData }: ThreeCanvasProps) {
         );
 
         // Apply smoothing
-        const smoothedPosition = smootherRef.current.update(rawPosition);
+        viewerPosition = smootherRef.current.update(rawPosition);
 
         // Update off-axis projection
-        updateOffAxisProjection(camera, smoothedPosition, {
+        updateOffAxisProjection(camera, viewerPosition, {
           widthCm: screenWidthCm,
           heightCm: screenHeightCm,
         });
       } else {
         // Default center position when no face tracking
-        const defaultPosition: ViewerPosition = { x: 0, y: 0, z: viewingDistanceCm };
-        updateOffAxisProjection(camera, defaultPosition, {
+        viewerPosition = { x: 0, y: 0, z: viewingDistanceCm };
+        updateOffAxisProjection(camera, viewerPosition, {
           widthCm: screenWidthCm,
           heightCm: screenHeightCm,
         });
+      }
+
+      // Store viewer position for parallax plane updates
+      viewerPositionRef.current = viewerPosition;
+
+      // Update parallax plane with normalized viewer offset
+      // Normalize viewer offset relative to screen dimensions
+      const normalizedX = viewerPosition.x / (screenWidthCm / 2);
+      const normalizedY = viewerPosition.y / (screenHeightCm / 2);
+
+      if (parallaxPlaneRef.current) {
+        parallaxPlaneRef.current.updateViewerOffset(normalizedX, normalizedY);
+      }
+      if (layeredPlaneRef.current) {
+        layeredPlaneRef.current.updateViewerOffset(normalizedX, normalizedY);
       }
 
       renderer.render(scene, camera);

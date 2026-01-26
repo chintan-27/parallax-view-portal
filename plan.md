@@ -1,5 +1,5 @@
-# Off-Axis “Window” Viewer + Smart 2.5D/3D Content Pipeline
-Status: Planning
+# Off-Axis "Window" Viewer + Smart 2.5D/3D Content Pipeline
+Status: Phase 4 Complete
 Scope: Desktop-first web app (Chrome/Safari/Edge), webcam required for head tracking.
 
 ## High-level goal
@@ -13,7 +13,7 @@ Create a head-tracked off-axis projection “window” viewer in the browser, th
 
 ---
 
-# Phase 0 — Repo + Baseline Engineering
+# Phase 0 — Repo + Baseline Engineering [COMPLETE]
 **Goal:** Establish a clean foundation for fast iteration.
 
 ## Milestone 0.1 — Project skeleton
@@ -41,8 +41,8 @@ Create a head-tracked off-axis projection “window” viewer in the browser, th
 
 ---
 
-# Phase 1 — Frontend-only Head-Tracked Off-Axis Viewer (No AI)
-**Goal:** Recreate the “empty 3D box moves with face” effect + place a sample object.
+# Phase 1 — Frontend-only Head-Tracked Off-Axis Viewer (No AI) [COMPLETE]
+**Goal:** Recreate the "empty 3D box moves with face" effect + place a sample object.
 
 ## Milestone 1.1 — Webcam + face tracking integrated
 **Deliverables**
@@ -107,7 +107,7 @@ Create a head-tracked off-axis projection “window” viewer in the browser, th
 
 ---
 
-# Phase 2 — Frontend Inputs (No Backend Yet): Basic Asset Loading + Heuristics
+# Phase 2 — Frontend Inputs (No Backend Yet): Basic Asset Loading + Heuristics [COMPLETE]
 **Goal:** Let users load assets manually (no AI), to validate rendering modes and scaling logic.
 
 ## Milestone 2.1 — Asset loader (local files)
@@ -146,10 +146,10 @@ Create a head-tracked off-axis projection “window” viewer in the browser, th
 
 ---
 
-# Phase 3 — Backend v1: AI/Compute for “Smart” Conversion (Images → Assets)
+# Phase 3 — Backend v1: AI/Compute for "Smart" Conversion (Images → Assets) [COMPLETE]
 **Goal:** Introduce backend to process inputs into assets for the Phase 1/2 viewer.
 
-## Milestone 3.1 — Backend scaffolding
+## Milestone 3.1 — Backend scaffolding [COMPLETE]
 **Deliverables**
 - `services/api` (Node/Fastify or Python/FastAPI)
 - Job queue abstraction (even if single-process at first)
@@ -162,7 +162,7 @@ Create a head-tracked off-axis projection “window” viewer in the browser, th
 **Acceptance criteria**
 - Frontend can submit an image and poll job status.
 
-## Milestone 3.2 — Router: classify input type (object vs landscape)
+## Milestone 3.2 — Router: classify input type (object vs landscape) [COMPLETE]
 **Deliverables**
 - “Input router” service that outputs:
   - `{type: object|landscape, bbox?, mask?}`
@@ -175,7 +175,7 @@ Create a head-tracked off-axis projection “window” viewer in the browser, th
 - Given “landscape” → landscape
 - Store results with job output metadata.
 
-## Milestone 3.3 — Object pipeline v1: 2.5D object (recommended MVP)
+## Milestone 3.3 — Object pipeline v1: 2.5D object (recommended MVP) [COMPLETE]
 **Deliverables**
 - Generate:
   - subject cutout (mask + RGBA)
@@ -190,7 +190,7 @@ Create a head-tracked off-axis projection “window” viewer in the browser, th
 **Acceptance criteria**
 - Viewer can load outputs and render a convincing parallax object.
 
-## Milestone 3.4 — Landscape pipeline v1: depth background
+## Milestone 3.4 — Landscape pipeline v1: depth background [COMPLETE]
 **Deliverables**
 - Generate depth for landscape image
 - Output:
@@ -203,10 +203,10 @@ Create a head-tracked off-axis projection “window” viewer in the browser, th
 
 ---
 
-# Phase 4 — Rendering Upgrades in Viewer (Uses Backend Outputs)
+# Phase 4 — Rendering Upgrades in Viewer (Uses Backend Outputs) [COMPLETE]
 **Goal:** Make AI outputs look great and stable.
 
-## Milestone 4.1 — Parallax shader mode (RGB + depth)
+## Milestone 4.1 — Parallax shader mode (RGB + depth) [COMPLETE]
 **Deliverables**
 - Fullscreen quad or plane shader that uses depth to warp UVs based on viewer offset.
 - Controls:
@@ -217,7 +217,7 @@ Create a head-tracked off-axis projection “window” viewer in the browser, th
 **Acceptance criteria**
 - AI depth assets produce a stable parallax effect without obvious tearing in typical scenes.
 
-## Milestone 4.2 — Layered depth (MPI-lite) for fewer artifacts
+## Milestone 4.2 — Layered depth (MPI-lite) for fewer artifacts [COMPLETE]
 **Deliverables**
 - Convert depth+color into 2–4 depth slices (either in backend or frontend).
 - Render slices as stacked planes.

@@ -1,0 +1,38 @@
+[project]
+name = "parallax-api"
+version = "0.1.0"
+description = "Backend API for parallax view portal - handles asset processing jobs"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "python-multipart>=0.0.6",
+    "aiosqlite>=0.19.0",
+    "httpx>=0.26.0",
+    "pillow>=10.2.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.23.0",
+    "ruff>=0.1.0",
+]
+local-models = [
+    "torch>=2.1.0",
+    "transformers>=4.36.0",
+    "timm>=0.9.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
